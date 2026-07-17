@@ -21,7 +21,6 @@ import {
    AppearanceProvider and layered on top of these defaults.
    ============================================================ */
 const DEFAULT_IMAGES = {
-  hero:    { u: "1470229722913-7c0e2dbbafd3", s: "rpsm-hero",    label: "Hero background" },
   candles: { u: "1508361001413-7a9dca21d08a", s: "rpsm-candle",  label: "Candles" },
   pastor:  { u: "1507003211169-0a1dd7228f2d", s: "rpsm-pastor",  label: "Apostle portrait" },
   refuge:  { u: "1488521787991-ed7bbaae773c", s: "rpsm-refuge", label: "City of Refuge" },
@@ -85,17 +84,18 @@ const BODY_FONTS = ["Manrope", "Inter", "Poppins", "Lato", "Work Sans", "Nunito 
    below match the original hand-written copy.
    ============================================================ */
 const DEFAULT_CONTENT = {
-  hero: {
-    kicker: "The Apostle is coming · A National All-Night",
-    h1: "The Glory", h1Accent: "All-Night",
-    sub: "One night of prayer, prophecy and deliverance with Apostle Joshua Zulu — from dusk until the whole house is free. Guests welcome from across Zimbabwe and beyond.",
-  },
+  heroSlides: [
+    {
+      kicker: "The Apostle is coming · A National All-Night",
+      h1: "The Glory", h1Accent: "All-Night",
+      sub: "One night of prayer, prophecy and deliverance with Apostle Joshua Zulu — from dusk until the whole house is free. Guests welcome from across Zimbabwe and beyond.",
+      img: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1800&q=80",
+      event: { title: "The Glory All-Night", date: "2026-09-25T18:00", venue: "G&D Main Factory No. 5, Belmont, Bulawayo" },
+    },
+  ],
   heroButtons: [
     { label: "Register to attend", target: "register" },
     { label: "Plan your visit", target: "visit" },
-  ],
-  heroEvents: [
-    { title: "The Glory All-Night", date: "2026-09-25T18:00", venue: "G&D Main Factory No. 5, Belmont, Bulawayo" },
   ],
   sections: {
     gathering: { eyebrow: "The Gathering", heading: "A night set apart for the glory of God", lede: "The Apostle returns to lead the house in an all-night of worship, the word, and ministry. Here is everything you need to be there." },
@@ -218,7 +218,12 @@ function newCustomSection(type) {
 const GATHERING_ICONS = [<Calendar size={20} />, <MapPin size={20} />, <Star size={20} />];
 const NEW_CARD_TEMPLATES = {
   heroButtons: { label: "New button", target: "register" },
-  heroEvents: { title: "New event", date: "", venue: "" },
+  heroSlides: {
+    kicker: "New announcement", h1: "New Headline", h1Accent: "Subtitle",
+    sub: "Describe this event.",
+    img: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1800&q=80",
+    event: { title: "New event", date: "", venue: "" },
+  },
   gatheringFacts: { heading: "New fact", body: "Describe this fact." },
   watchCards: { kicker: "New card", heading: "New video", body: "Describe this video.", img: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=80" },
   giveCards: { heading: "New way to give", body: "Describe this giving option.", cta: "Give now", url: "" },
@@ -424,7 +429,6 @@ function AppearanceProvider({ children }) {
   const resetImage = (key) => { setDirty(true); setImagesState((i) => { const n = { ...i }; delete n[key]; return n; }); };
   const setSectionFont = (id, patch) => { setDirty(true); setThemeState((t) => ({ ...t, sectionFonts: { ...t.sectionFonts, [id]: { ...(t.sectionFonts[id] || {}), ...patch } } })); };
 
-  const setHero = (patch) => { setDirty(true); setContentState((c) => ({ ...c, hero: { ...c.hero, ...patch } })); };
   const setSection = (id, patch) => { setDirty(true); setContentState((c) => ({ ...c, sections: { ...c.sections, [id]: { ...c.sections[id], ...patch } } })); };
   const setFooter = (patch) => { setDirty(true); setContentState((c) => ({ ...c, footer: { ...c.footer, ...patch } })); };
   const setDonation = (patch) => { setDirty(true); setContentState((c) => ({ ...c, crusadeDonation: { ...c.crusadeDonation, ...patch } })); };
@@ -459,7 +463,7 @@ function AppearanceProvider({ children }) {
   return (
     <AppearanceContext.Provider value={{
       theme, images, setTheme, setImages, resetTheme, resetImages, resetImage, setSectionFont,
-      content, setHero, setSection, setFooter, setDonation, setListItem, addListItem, removeListItem, resetContent, setVisitTab, setVisitCard,
+      content, setSection, setFooter, setDonation, setListItem, addListItem, removeListItem, resetContent, setVisitTab, setVisitCard,
       setNavItem, addNavItem, removeNavItem, moveNavItem,
       toggleSectionHidden, moveSection,
       addCustomSection, removeCustomSection, setCustomSection, setCustomItem, addCustomItem, removeCustomItem,
@@ -496,14 +500,6 @@ const BOOKS = [
   { t: "The Prophetic Mantle", a: "Apostle Joshua Zulu", p: 14, c: "linear-gradient(150deg,#4B3182,#241640)" },
   { t: "Exhibiting the Glory", a: "RPSM Ministries", p: 9, c: "linear-gradient(150deg,#C98B84,#7a3f4f)" },
 ];
-
-function getNextEvent(events) {
-  const now = Date.now();
-  const upcoming = (events || [])
-    .filter((e) => e.date && !isNaN(new Date(e.date).getTime()) && new Date(e.date).getTime() > now)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
-  return upcoming[0] || null;
-}
 
 /* ============================================================
    ROOT
@@ -546,8 +542,21 @@ function Site({ goDash }) {
   const [slot, setSlot] = useState(null);
   const [ok, setOk] = useState({});
   const [busy, setBusy] = useState({});
-  const nextEvent = getNextEvent(content.heroEvents);
-  const cd = useCountdown(nextEvent ? new Date(nextEvent.date) : null);
+  const slides = content.heroSlides;
+  const [slideIndex, setSlideIndex] = useState(0);
+  const slide = slides[slideIndex] || slides[0];
+  useEffect(() => {
+    if (slideIndex >= slides.length) setSlideIndex(0);
+  }, [slides.length, slideIndex]);
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    // Restart the timer on every slide change (manual or automatic) so a
+    // manual click always gets a full interval before the next auto-advance,
+    // instead of autoplay fighting the visitor's own navigation.
+    const id = setTimeout(() => setSlideIndex((i) => (i + 1) % slides.length), 7000);
+    return () => clearTimeout(id);
+  }, [slides.length, slideIndex]);
+  const cd = useCountdown(slide.event && slide.event.date ? new Date(slide.event.date) : null);
 
   const add = (b) => { setCart((c) => [...c, b]); setCartOpen(true); };
   const remove = (i) => setCart((c) => c.filter((_, x) => x !== i));
@@ -918,14 +927,30 @@ function Site({ goDash }) {
 
       {/* HERO */}
       <section className="hero" id="top">
-        <div className="hero-bg"><Img k="hero" w={1800} alt="Worship gathering" /></div>
+        <div className="hero-bg-stack">
+          {slides.map((s, i) => (
+            <div key={i} className={"hero-bg" + (i === slideIndex ? " active" : "")}>
+              <img src={s.img} alt="" loading={i === 0 ? "eager" : "lazy"} />
+            </div>
+          ))}
+        </div>
         <div className="hero-veil" />
         <Stars />
         <div className="horizon" />
+        {slides.length > 1 && (
+          <>
+            <button type="button" className="hero-arrow prev" onClick={() => setSlideIndex((slideIndex - 1 + slides.length) % slides.length)} aria-label="Previous slide">
+              <ChevronRight size={22} style={{ transform: "rotate(180deg)" }} />
+            </button>
+            <button type="button" className="hero-arrow next" onClick={() => setSlideIndex((slideIndex + 1) % slides.length)} aria-label="Next slide">
+              <ChevronRight size={22} />
+            </button>
+          </>
+        )}
         <div className="wrap hero-inner">
-          <span className="kicker"><span className="dot" /> {content.hero.kicker}</span>
-          <h1>{content.hero.h1}<br /><span className="thin">{content.hero.h1Accent}</span></h1>
-          <p className="sub">{content.hero.sub}</p>
+          <span className="kicker"><span className="dot" /> {slide.kicker}</span>
+          <h1>{slide.h1}<br /><span className="thin">{slide.h1Accent}</span></h1>
+          <p className="sub">{slide.sub}</p>
           <div className="hero-cta">
             {content.heroButtons.map((b, i) => {
               const cls = "btn " + (i === 0 ? "btn-gold" : "btn-ghost");
@@ -934,12 +959,12 @@ function Site({ goDash }) {
                 : <a key={i} className={cls} href={`#${b.target}`}>{b.label}</a>;
             })}
           </div>
-          {nextEvent && (
+          {slide.event && slide.event.date && new Date(slide.event.date).getTime() > Date.now() && (
             <>
               <div className="next-event">
-                <Calendar size={14} /> Next: <b>{nextEvent.title}</b>
-                {" · "}{new Date(nextEvent.date).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                {nextEvent.venue ? ` · ${nextEvent.venue}` : ""}
+                <Calendar size={14} /> Next: <b>{slide.event.title}</b>
+                {" · "}{new Date(slide.event.date).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                {slide.event.venue ? ` · ${slide.event.venue}` : ""}
               </div>
               <div className="countdown">
                 {[["Days", cd.d], ["Hours", cd.h], ["Minutes", cd.m], ["Seconds", cd.s]].map(([l, v]) => (
@@ -947,6 +972,13 @@ function Site({ goDash }) {
                 ))}
               </div>
             </>
+          )}
+          {slides.length > 1 && (
+            <div className="hero-dots">
+              {slides.map((_, i) => (
+                <button type="button" key={i} className={"hero-dot" + (i === slideIndex ? " active" : "")} onClick={() => setSlideIndex(i)} aria-label={`Show slide ${i + 1}`} />
+              ))}
+            </div>
           )}
         </div>
       </section>
@@ -1537,33 +1569,36 @@ function StorePage() {
 
 function EventPage() {
   const { content, setListItem, addListItem, removeListItem } = useAppearance();
-  const nextEvt = getNextEvent(content.heroEvents);
 
   return (
     <>
-      <PageHead title="Event & Content" subtitle="Control the countdown and what visitors see" />
+      <PageHead title="Event & Content" subtitle="Control the banner carousel and what visitors see" />
       <div className="msg-grid">
         <div className="d-card">
           <div className="d-card-head">
-            <h3>Events &amp; countdown</h3>
-            <button className="btn-sm" onClick={() => addListItem("heroEvents", NEW_CARD_TEMPLATES.heroEvents)}><Plus size={14} /> Add event</button>
+            <h3>Banner carousel</h3>
+            <button className="btn-sm" onClick={() => addListItem("heroSlides", NEW_CARD_TEMPLATES.heroSlides)}><Plus size={14} /> Add slide</button>
           </div>
           <p style={{ color: "var(--ivory-dim)", fontSize: ".88rem", marginTop: 0 }}>
-            {nextEvt
-              ? <>The banner is counting down to <b style={{ color: "var(--gold-bright)" }}>{nextEvt.title}</b> on {new Date(nextEvt.date).toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" })}.</>
-              : "No upcoming event — add one below and the banner countdown will appear automatically."}
+            {content.heroSlides.length > 1
+              ? `${content.heroSlides.length} slides — the banner auto-advances through them on the public site.`
+              : "One slide — add another to turn the banner into a carousel."}
           </p>
           <div className="cards-edit-grid">
-            {content.heroEvents.map((ev, i) => (
+            {content.heroSlides.map((s, i) => (
               <div className="content-block" key={i}>
-                <CardDelete onDelete={() => removeListItem("heroEvents", i)} />
-                <div className="field"><label>Event title</label><input value={ev.title} onChange={(e) => setListItem("heroEvents", i, { title: e.target.value })} /></div>
-                <div className="field"><label>Date &amp; time</label><input type="datetime-local" value={ev.date} onChange={(e) => setListItem("heroEvents", i, { date: e.target.value })} /></div>
-                <div className="field"><label>Venue (optional)</label><input value={ev.venue || ""} onChange={(e) => setListItem("heroEvents", i, { venue: e.target.value })} /></div>
-                {getNextEvent(content.heroEvents) === ev && <span className="pill sm" style={{ marginTop: 8, display: "inline-block" }}>Currently counting down to this</span>}
+                <CardDelete onDelete={() => removeListItem("heroSlides", i)} />
+                <div className="field"><label>Headline</label><input value={s.h1} onChange={(e) => setListItem("heroSlides", i, { h1: e.target.value })} /></div>
+                <div className="field"><label>Event title</label><input value={s.event.title} onChange={(e) => setListItem("heroSlides", i, { event: { ...s.event, title: e.target.value } })} /></div>
+                <div className="field"><label>Date &amp; time</label><input type="datetime-local" value={s.event.date} onChange={(e) => setListItem("heroSlides", i, { event: { ...s.event, date: e.target.value } })} /></div>
+                <div className="field"><label>Venue (optional)</label><input value={s.event.venue || ""} onChange={(e) => setListItem("heroSlides", i, { event: { ...s.event, venue: e.target.value } })} /></div>
+                {s.event.date && new Date(s.event.date).getTime() > Date.now()
+                  ? <span className="pill sm" style={{ marginTop: 8, display: "inline-block" }}>Counting down</span>
+                  : <span className="pill" style={{ marginTop: 8, display: "inline-block" }}>No countdown</span>}
               </div>
             ))}
           </div>
+          <p style={{ color: "var(--ivory-dim)", fontSize: ".78rem", marginTop: 14 }}>Headline copy, pictures and buttons are edited on the Content page, under Banner (hero carousel).</p>
         </div>
         <div className="d-card">
           <div className="d-card-head"><h3>Sermons</h3><button className="btn-sm"><Plus size={14} /> Add video</button></div>
@@ -1587,7 +1622,7 @@ function sectionLabel(id, content) {
 
 function ContentPage() {
   const {
-    content, setHero, setSection, setFooter, setDonation, setListItem, addListItem, removeListItem, resetContent, setVisitTab, setVisitCard,
+    content, setSection, setFooter, setDonation, setListItem, addListItem, removeListItem, resetContent, setVisitTab, setVisitCard,
     setNavItem, addNavItem, removeNavItem, moveNavItem,
     toggleSectionHidden, moveSection,
     addCustomSection, removeCustomSection, setCustomSection, setCustomItem, addCustomItem, removeCustomItem,
@@ -1719,19 +1754,33 @@ function ContentPage() {
 
       <div className="d-card" style={{ marginBottom: 18 }}>
         <div className="d-card-head">
-          <h3>Banner (hero)</h3>
+          <h3>Banner (hero carousel)</h3>
           <button className="btn-sm" onClick={resetContent}><RotateCcw size={14} /> Reset all content</button>
         </div>
-        <div className="field"><label>Kicker line</label><input value={content.hero.kicker} onChange={(e) => setHero({ kicker: e.target.value })} /></div>
-        <div className="two">
-          <div className="field"><label>Headline</label><input value={content.hero.h1} onChange={(e) => setHero({ h1: e.target.value })} /></div>
-          <div className="field"><label>Headline accent (2nd line)</label><input value={content.hero.h1Accent} onChange={(e) => setHero({ h1Accent: e.target.value })} /></div>
+        <p style={{ color: "var(--ivory-dim)", fontSize: ".88rem", marginTop: 0 }}>Each slide is a full banner — its own headline, picture and event countdown. With more than one slide, the banner auto-advances every few seconds and shows dots/arrows for visitors to navigate manually.</p>
+        <div className="cards-edit-grid">
+          {content.heroSlides.map((s, i) => (
+            <div className="content-block" key={i}>
+              <CardDelete onDelete={() => removeListItem("heroSlides", i)} />
+              <div className="field"><label>Kicker line</label><input value={s.kicker} onChange={(e) => setListItem("heroSlides", i, { kicker: e.target.value })} /></div>
+              <div className="two">
+                <div className="field"><label>Headline</label><input value={s.h1} onChange={(e) => setListItem("heroSlides", i, { h1: e.target.value })} /></div>
+                <div className="field"><label>Headline accent (2nd line)</label><input value={s.h1Accent} onChange={(e) => setListItem("heroSlides", i, { h1Accent: e.target.value })} /></div>
+              </div>
+              <div className="field"><label>Subtext</label><textarea rows={2} value={s.sub} onChange={(e) => setListItem("heroSlides", i, { sub: e.target.value })} /></div>
+              <CardImageField value={s.img} onChange={(url) => setListItem("heroSlides", i, { img: url })} label="Slide background" />
+              <div className="content-block-h" style={{ marginTop: 14 }}>Event &amp; countdown for this slide</div>
+              <div className="field"><label>Event title</label><input value={s.event.title} onChange={(e) => setListItem("heroSlides", i, { event: { ...s.event, title: e.target.value } })} /></div>
+              <div className="field"><label>Date &amp; time</label><input type="datetime-local" value={s.event.date} onChange={(e) => setListItem("heroSlides", i, { event: { ...s.event, date: e.target.value } })} /></div>
+              <div className="field"><label>Venue (optional)</label><input value={s.event.venue || ""} onChange={(e) => setListItem("heroSlides", i, { event: { ...s.event, venue: e.target.value } })} /></div>
+              <p style={{ color: "var(--ivory-dim)", fontSize: ".78rem", marginTop: -4 }}>Leave the date blank (or in the past) to hide the countdown for this slide.</p>
+            </div>
+          ))}
         </div>
-        <div className="field"><label>Subtext</label><textarea rows={2} value={content.hero.sub} onChange={(e) => setHero({ sub: e.target.value })} /></div>
-        <ImagePicker imgKey="hero" label="Banner background" previewWidth={800} />
+        <button className="btn-sm add-card" onClick={() => addListItem("heroSlides", NEW_CARD_TEMPLATES.heroSlides)}><Plus size={14} /> Add slide</button>
 
         <div className="content-block-h" style={{ marginTop: 20 }}>Buttons</div>
-        <p style={{ color: "var(--ivory-dim)", fontSize: ".85rem", marginTop: -6 }}>The first button is styled as the primary (gold) button; the rest are secondary. Target can be a section name (jumps to it) or a full https:// link (opens in a new tab).</p>
+        <p style={{ color: "var(--ivory-dim)", fontSize: ".85rem", marginTop: -6 }}>Shared across every slide. The first button is styled as the primary (gold) button; the rest are secondary. Target can be a section name (jumps to it) or a full https:// link (opens in a new tab).</p>
         <div className="cards-edit-grid">
           {content.heroButtons.map((b, i) => (
             <div className="content-block" key={i}>
@@ -1748,24 +1797,6 @@ function ContentPage() {
           ))}
         </div>
         <button className="btn-sm add-card" onClick={() => addListItem("heroButtons", NEW_CARD_TEMPLATES.heroButtons)}><Plus size={14} /> Add button</button>
-
-        <div className="content-block-h" style={{ marginTop: 20 }}>Events &amp; countdown</div>
-        <p style={{ color: "var(--ivory-dim)", fontSize: ".85rem", marginTop: -6 }}>Add every event with its date and time. The banner automatically counts down to whichever one is soonest — past events just drop out on their own, no need to delete them.</p>
-        <div className="cards-edit-grid">
-          {content.heroEvents.map((ev, i) => {
-            const isNext = getNextEvent(content.heroEvents) === ev;
-            return (
-              <div className="content-block" key={i}>
-                <CardDelete onDelete={() => removeListItem("heroEvents", i)} />
-                <div className="field"><label>Event title</label><input value={ev.title} onChange={(e) => setListItem("heroEvents", i, { title: e.target.value })} /></div>
-                <div className="field"><label>Date &amp; time</label><input type="datetime-local" value={ev.date} onChange={(e) => setListItem("heroEvents", i, { date: e.target.value })} /></div>
-                <div className="field"><label>Venue (optional)</label><input value={ev.venue || ""} onChange={(e) => setListItem("heroEvents", i, { venue: e.target.value })} /></div>
-                {isNext && <span className="pill sm" style={{ marginTop: 8, display: "inline-block" }}>Currently counting down to this</span>}
-              </div>
-            );
-          })}
-        </div>
-        <button className="btn-sm add-card" onClick={() => addListItem("heroEvents", NEW_CARD_TEMPLATES.heroEvents)}><Plus size={14} /> Add event</button>
       </div>
 
       <div className="d-card" style={{ marginBottom: 18 }}>
@@ -2352,8 +2383,18 @@ function StyleTag() {
   .mobile-menu a{padding:12px 0;border-bottom:1px solid var(--line);font-weight:600;color:var(--ivory-dim);cursor:pointer}
 
   .hero{position:relative;overflow:hidden;padding:clamp(56px,10vw,120px) 0 clamp(60px,9vw,110px)}
-  .hero-bg{position:absolute;inset:0;z-index:0}
+  .hero-bg-stack{position:absolute;inset:0;z-index:0}
+  .hero-bg{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease}
+  .hero-bg.active{opacity:1}
   .hero-bg img{width:100%;height:100%;object-fit:cover}
+  .hero-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:3;background:rgba(20,13,40,.45);border:1px solid var(--line);color:var(--ivory);
+    width:44px;height:44px;border-radius:50%;display:grid;place-items:center;cursor:pointer;transition:.2s;backdrop-filter:blur(4px)}
+  .hero-arrow:hover{background:rgba(217,164,65,.25);border-color:var(--gold)}
+  .hero-arrow.prev{left:18px}.hero-arrow.next{right:18px}
+  .hero-dots{display:flex;gap:10px;justify-content:center;margin-top:40px}
+  .hero-dot{width:9px;height:9px;border-radius:50%;background:rgba(244,238,225,.25);border:0;cursor:pointer;padding:0;transition:.2s}
+  .hero-dot:hover{background:rgba(244,238,225,.5)}
+  .hero-dot.active{background:var(--gold);width:26px;border-radius:5px}
   .hero-veil{position:absolute;inset:0;z-index:1;opacity:var(--hero-overlay-opacity,1);background:
     radial-gradient(1200px 620px at 50% -10%,rgba(217,164,65,.28),transparent 60%),
     linear-gradient(180deg,rgba(14,9,32,.86),rgba(20,13,40,.92) 55%,var(--night-2))}
