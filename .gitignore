@@ -7,3 +7,6 @@ server/uploads/*
 .env
 
 .env.local
+
+.vercel
+.env*
